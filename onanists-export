@@ -1,0 +1,178 @@
+#!/bin/python3
+from playwright.sync_api import sync_playwright
+import tempfile
+import os
+
+vault_dir = "/home/waraidako/Documents/Obsidian Vault"
+
+document_header = """
+<!DOCTYPE html>
+<head>
+<style>
+    @font-face {
+        font-family: math-font;
+        src: url(https://fred-wang.github.io/MathFonts/TeXGyreSchola/texgyreschola-math.woff2);
+    }
+    math {
+        font-family: math-font;
+    }
+    body{
+        font-family:Calibri;
+        max-width: 50em;
+        margin: auto;
+        padding: 10px;
+        background-color: #1c1c1c;
+        color: white;
+    }
+    table{
+        margin: 1em 0 1em 0;
+    }
+    table,tr,th,td{
+        border: 1px solid #474747;
+        border-collapse: collapse;
+        text-align: left;
+        vertical-align: top;
+    }
+    img{
+        max-width: 100%;
+    }
+</style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+</head>
+"""
+
+index_header = """
+<!DOCTYPE html>
+<head>
+<style>
+        body{
+            font-family: Calibri;
+            max-width: 50em;
+            margin: auto;
+            padding: 10px;
+            background-color: #1c1c1c;
+            color: white;
+        }
+        a {
+            /*color: #275E9D;*/
+            color: #287cff;
+        }
+
+        /* Style the button that is used to open and close the collapsible content */
+        .collapsible {
+            background-color: #1c1c1c;
+            color: white;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+        .active, .collapsible:hover {
+            background-color: #1c1c1c;
+        }
+
+        /* Style the collapsible content. Note: hidden by default */
+        .content {
+            padding: 0 18px;
+            /*background-color: white;*/
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.15s ease-out;
+        }
+
+        .collapsible:after {
+            content: '\\02795'; /* Unicode character for "plus" sign (+) */
+            font-size: 13px;
+            color: #1c1c1c;
+            float: right;
+            margin-left: 5px;
+        }
+
+        .active:after {
+            content: "\\2796"; /* Unicode character for "minus" sign (-) */
+        }
+    </style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+</head>
+
+<body>
+"""
+
+index_script = """
+    <script>
+        var coll = document.getElementsByClassName("collapsible");
+        var i;
+
+        for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.maxHeight){
+            content.style.maxHeight = null;
+            } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+            }
+        });
+        }
+    </script>
+</body>
+"""
+
+browser_page = sync_playwright().start().chromium.launch().new_page()
+
+def md_to_html(md_file, html_file):
+    os.system(f'pandoc "{md_file}" -o "{html_file}" --from=gfm+hard_line_breaks --mathml')
+    with open(html_file, 'r+') as f:
+        content = f.read()
+        content = content.replace('style="text-align: center"','style="text-align: -webkit-center"')
+        content = content.replace('¯','―')
+        f.seek(0, 0)
+        f.write(document_header + '\n' + content)
+
+def html_to_pdf(html_file, pdf_file):
+    browser_page.goto(f'file:///{html_file}')
+    browser_page.pdf(path=pdf_file, format='A4', margin={"top": "0cm", "right": "0cm", "bottom": "0cm", "left": "0cm"}, print_background=True)
+    
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    os.system(f"obsidian-export '{vault_dir}' '{temp_dir}'")
+
+    index_files = {}
+
+
+    for root, dir, files in os.walk(temp_dir):
+        for file in sorted(files):
+            if file.endswith(".md"):
+                path_no_ext = root+"/"+file[0:-3]
+                local_dir = root.replace(temp_dir+"/","")
+                if local_dir not in index_files:
+                    index_files[local_dir] = []
+                index_files[local_dir].append(file[0:-3])
+                print(f"converting '{local_dir+"/"+file}' .", end="", flush=True)
+                md_to_html(path_no_ext+".md", path_no_ext+".html")
+                print(".", end="", flush=True)
+                html_to_pdf(path_no_ext+".html", path_no_ext+".pdf")
+                print(". done")
+
+    index_html = index_header + "\n"
+
+    for group in sorted(index_files):
+        index_html += f'<button type="button" class="collapsible">{group}</button>\n<div class="content">'
+        for file in sorted(index_files[group]):
+            index_html += f'\n\t<a href="{group+"/"+file+".html"}">HTML</a> <a href="{group+"/"+file+".pdf"}">PDF</a> {file}<br>'
+        index_html += f'\n</div>\n'
+    index_html += index_script
+
+    with open(f"{temp_dir}/index.html", "w") as f:
+        f.write(index_html)
+
+    print("uploading to server ", end="", flush=True)
+    os.system(f"rsync -r {temp_dir}/ onanists.ru:/home/max/obsidian-pdf/")
+    #os.system(f"rsync -r {temp_dir}/ ~/Uni/onanists-export")
+    print("... done")
