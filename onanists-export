@@ -154,6 +154,14 @@ with tempfile.TemporaryDirectory() as temp_dir:
 
     for root, dir, files in os.walk(temp_dir):
         for file in sorted(files):
+            if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
+                path = root+"/"+file
+                print(f"darkmoding '{local_dir+"/"+file}' ..", end="", flush=True)
+                os.system(f"magick '{path}' -colorspace HSL -channel L -level 100%,30% +level-colors 'rgb(0,0,20)','lemonchiffon' -black-threshold 20% '{path}' && magick '{path}' +level 10% '{path}'")
+                print(". done")
+
+    for root, dir, files in os.walk(temp_dir):
+        for file in sorted(files):
             if file.endswith(".md"):
                 path_no_ext = root+"/"+file[0:-3]
                 local_dir = root.replace(temp_dir+"/","")
@@ -164,11 +172,6 @@ with tempfile.TemporaryDirectory() as temp_dir:
                 md_to_html(path_no_ext+".md", path_no_ext+".html")
                 print(".", end="", flush=True)
                 html_to_pdf(path_no_ext+".html", path_no_ext+".pdf")
-                print(". done")
-            if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
-                path = root+"/"+file
-                print(f"darkmoding '{local_dir+"/"+file}' ..", end="", flush=True)
-                os.system(f"magick '{path}' -colorspace HSL -channel L -level 100%,30% +level-colors 'rgb(0,0,20)','lemonchiffon' -black-threshold 20% '{path}' && magick '{path}' +level 10% '{path}'")
                 print(". done")
 
     index_html = index_header + "\n"
