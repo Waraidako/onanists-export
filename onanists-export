@@ -4,7 +4,7 @@ import tempfile
 import os
 from PIL import Image, ImageStat
 
-LOCAL_MODE = True                                      # Dev mode switch
+LOCAL_MODE = False                                     # Dev mode switch
 local_export_path = '/home/waraidako/onanists-export'  # Dev mode location
 
 #Try and find the vault
@@ -52,6 +52,9 @@ document_header = """
     }
     img{
         max-width: 100%;
+    }
+    a {
+        color: #287cff
     }
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
