@@ -167,7 +167,8 @@ with tempfile.TemporaryDirectory() as temp_dir:
                 print(". done")
             if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                 path = root+"/"+file
-                os.system(f"convert -colorspace HSL -channel L -level 100%,20% +level-colors 'rgb(102,75,25)','lemonchiffon' '{path}' '{path}'")
+                # os.system(f"magick '{path}' -colorspace HSL -channel L -level 100%,20% +level-colors 'rgb(102,75,25)','lemonchiffon' '{path}'")
+                os.system(f"magick '{path}' \( -clone 0 -negate \) \( -clone 0 -colorspace HSB -channel g -separate +channel -threshold 20% -negate \) -compose over -composite +level 10% '{path}'")
                 
 
     index_html = index_header + "\n"
