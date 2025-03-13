@@ -2,6 +2,7 @@
 from playwright.sync_api import sync_playwright
 import tempfile
 import os
+from PIL import Image, ImageStat
 
 if os.path.isdir('/home/waraidako/Documents/Obsidian Vault'):
     vault_dir = "/home/waraidako/Documents/Obsidian Vault"
@@ -145,6 +146,10 @@ def html_to_pdf(html_file, pdf_file):
     browser_page.goto(f'file:///{html_file}')
     browser_page.pdf(path=pdf_file, format='A4', margin={"top": "0cm", "right": "0cm", "bottom": "0cm", "left": "0cm"}, print_background=True)
     
+def is_dark(file):
+    im = Image.open(file).convert('L')
+    stat = ImageStat.Stat(im)
+    return stat.mean[0] < 100
 
 with tempfile.TemporaryDirectory() as temp_dir:
     os.system(f"obsidian-export '{vault_dir}' '{temp_dir}'")
@@ -156,10 +161,13 @@ with tempfile.TemporaryDirectory() as temp_dir:
         for file in sorted(files):
             if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                 path = root+"/"+file
-                local_dir = root.replace(temp_dir+"/","")
-                print(f"darkmoding '{local_dir+"/"+file}' ..", end="", flush=True)
-                os.system(f"magick '{path}' -colorspace HSL -channel L -level 100%,30% +level-colors 'rgb(0,0,20)','lemonchiffon' -black-threshold 20% '{path}' && magick '{path}' +level 10.98% '{path}'")
-                print(". done")
+                local_path = root.replace(temp_dir+"/","")+"/"+file
+                if is_dark(path):
+                    print(f"{local_path} is already dark")
+                else:
+                    print(f"darkmoding '{local_path}' ..", end="", flush=True)
+                    os.system(f"magick '{path}' -colorspace HSL -channel L -level 100%,30% +level-colors 'rgb(0,0,20)','lemonchiffon' -black-threshold 20% '{path}' && magick '{path}' +level 10.98% '{path}'")
+                    print(". done")
 
     for root, dir, files in os.walk(temp_dir):
         for file in sorted(files):
