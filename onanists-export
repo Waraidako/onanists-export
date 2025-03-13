@@ -149,7 +149,7 @@ def html_to_pdf(html_file, pdf_file):
 def is_dark(file):
     im = Image.open(file).convert('L')
     stat = ImageStat.Stat(im)
-    return stat.mean[0] < 100
+    return stat.mean[0] < 150
 
 with tempfile.TemporaryDirectory() as temp_dir:
     os.system(f"obsidian-export '{vault_dir}' '{temp_dir}'")
