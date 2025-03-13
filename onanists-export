@@ -4,11 +4,21 @@ import tempfile
 import os
 from PIL import Image, ImageStat
 
-if os.path.isdir('/home/waraidako/Documents/Obsidian Vault'):
-    vault_dir = "/home/waraidako/Documents/Obsidian Vault"
-elif os.path.isdir('/home/max/Documents/onanists'):
-    vault_dir = "/home/max/Documents/onanists"
-else:
+LOCAL_MODE = True                                      # Dev mode switch
+local_export_path = '/home/waraidako/onanists-export'  # Dev mode location
+
+#Try and find the vault
+possible_vault_locations = [
+    '/home/waraidako/Documents/Obsidian Vault',
+    '/home/waraidako/Uni/Notes/uni-notes',
+    '/home/max/Documents/onanists'
+]
+vault_dir = ''
+for location in possible_vault_locations:
+    if os.path.isdir(location):
+        vault_dir = location
+        break
+if vault_dir == '':
     print("Obsidian vault not found!")
     exit()
 
@@ -151,27 +161,34 @@ def is_dark(file):
     stat = ImageStat.Stat(im)
     return stat.mean[0] < 150
 
+# Get list of ignored files
+ignore_file_path = vault_dir + "/dark-mode-ignore.md"
+if os.path.isfile(ignore_file_path):
+   with open(ignore_file_path) as file:
+       to_ignore = [line.rstrip() for line in file]
+else:
+    to_ignore = []
+
 with tempfile.TemporaryDirectory() as temp_dir:
     os.system(f"obsidian-export '{vault_dir}' '{temp_dir}'")
 
     index_files = {}
-
 
     for root, dir, files in os.walk(temp_dir):
         for file in sorted(files):
             if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                 path = root+"/"+file
                 local_path = root.replace(temp_dir+"/","")+"/"+file
-                if is_dark(path):
-                    print(f"{local_path} is already dark")
+                if is_dark(path) or file in to_ignore:
+                    print(f"modifying '{local_path}' ... ignored")
                 else:
-                    print(f"darkmoding '{local_path}' ..", end="", flush=True)
+                    print(f"modifying '{local_path}' ..", end="", flush=True)
                     os.system(f"magick '{path}' -colorspace HSL -channel L -level 100%,30% +level-colors 'rgb(0,0,20)','lemonchiffon' -black-threshold 20% '{path}' && magick '{path}' +level 10.98% '{path}'")
                     print(". done")
 
     for root, dir, files in os.walk(temp_dir):
         for file in sorted(files):
-            if file.endswith(".md"):
+            if file.endswith(".md") and file != "dark-mode-ignore.md": # Don't convert the ignore file
                 path_no_ext = root+"/"+file[0:-3]
                 local_dir = root.replace(temp_dir+"/","")
                 if local_dir not in index_files:
@@ -185,6 +202,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
 
     index_html = index_header + "\n"
 
+    # Generate the markup body
     for group in sorted(index_files):
         index_html += f'<button type="button" class="collapsible">{group}</button>\n<div class="content">'
         for file in sorted(index_files[group]):
@@ -195,7 +213,11 @@ with tempfile.TemporaryDirectory() as temp_dir:
     with open(f"{temp_dir}/index.html", "w") as f:
         f.write(index_html)
 
-    print("uploading to server ", end="", flush=True)
-    os.system(f"rsync -r {temp_dir}/ onanists.ru:/home/max/obsidian-pdf/")
-    #os.system(f"rsync -r {temp_dir}/ ~/Uni/onanists-export")
-    print("... done")
+    print("uploading to server ...", end="", flush=True)
+
+    if LOCAL_MODE:
+        os.system(f"rsync -r {temp_dir}/ {local_export_path}")                 # If in dev mode export locally
+    else:
+        os.system(f"rsync -r {temp_dir}/ onanists.ru:/home/max/obsidian-pdf/") # Otherwise push to prod
+    
+    print(" done")
