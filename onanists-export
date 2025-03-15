@@ -145,6 +145,7 @@ index_script = """
 """
 
 browser_page = sync_playwright().start().chromium.launch().new_page()
+browser_page.set_viewport_size({"width": 793, "height": 480})
 
 def md_to_html(md_file, html_file):
     os.system(f'pandoc "{md_file}" -o "{html_file}" --from=gfm+hard_line_breaks --mathml')
@@ -157,7 +158,7 @@ def md_to_html(md_file, html_file):
 
 def html_to_pdf(html_file, pdf_file):
     browser_page.goto(f'file:///{html_file}')
-    browser_page.pdf(path=pdf_file, format='A4', margin={"top": "0cm", "right": "0cm", "bottom": "0cm", "left": "0cm"}, print_background=True)
+    browser_page.pdf(path=pdf_file, margin={"top": "0cm", "right": "0cm", "bottom": "0cm", "left": "0cm"}, print_background=True, width="210mm", height=browser_page.evaluate("document.getElementsByTagName('body')[0].scrollHeight+'px'"))
     
 def is_dark(file):
     im = Image.open(file).convert('L')
