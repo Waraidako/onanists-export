@@ -377,7 +377,7 @@ def convert(temp_dir, darkmode=True):
                     local_dir = root.replace(temp_dir+"/","")
                     if local_dir not in index_files:
                         index_files[local_dir] = []
-                    if file[0:-3] not in index_files:
+                    if file[0:-3] not in index_files[local_dir]:
                         index_files[local_dir].append(file[0:-3])
                     print(f"{mode} '{local_dir+"/"+file}' .", end="", flush=True)
                     md_to_html(f"{path_no_ext}.md", f"{path_no_ext} {mode}.html", darkmode=darkmode)
